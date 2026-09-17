@@ -1,0 +1,14 @@
+package com.evoluxion.hiring_portal.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class LoginResponse {
+
+    private String message;
+    private String token;
+    private String email;
+    private String role;
+}
