@@ -40,20 +40,28 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
 
-                // Public authentication endpoints
+                // =============================================
+                // PUBLIC AUTHENTICATION ENDPOINTS
+                // =============================================
                 .requestMatchers(
                     "/api/auth/register",
                     "/api/auth/login",
+                    "/api/auth/verify-otp",
+                    "/api/auth/resend-otp",
+
+                    // Swagger / OpenAPI
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html"
                 ).permitAll()
 
-                // All other APIs require JWT authentication
+                // =============================================
+                // ALL OTHER APIs REQUIRE JWT
+                // =============================================
                 .anyRequest().authenticated()
             )
 
-            // Run our JWT filter before Spring's username/password filter
+            // Run JWT filter before Spring's username/password filter
             .addFilterBefore(
                     jwtAuthenticationFilter,
                     UsernamePasswordAuthenticationFilter.class
