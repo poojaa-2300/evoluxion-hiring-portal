@@ -94,21 +94,33 @@ public class Candidate {
     @Builder.Default
     private String role = "CANDIDATE";
 
-    // OTP used for email verification
+    // =========================================================
+    // EMAIL VERIFICATION OTP
+    // =========================================================
+
     @Column(name = "otp")
     private Integer otp;
 
-    // OTP expiry time
     @Column(name = "otp_expiry_time")
     private LocalDateTime otpExpiryTime;
 
-    // Email verification status
-    @Column(
-            name = "email_verified",
-            nullable = false
-    )
+    @Column(name = "email_verified", nullable = false)
     @Builder.Default
     private Boolean emailVerified = false;
+
+    // =========================================================
+    // PASSWORD RESET OTP
+    // =========================================================
+
+    @Column(name = "password_reset_otp")
+    private Integer passwordResetOtp;
+
+    @Column(name = "password_reset_otp_expiry_time")
+    private LocalDateTime passwordResetOtpExpiryTime;
+
+    // =========================================================
+    // TIMESTAMPS
+    // =========================================================
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -116,9 +128,12 @@ public class Candidate {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    // =========================================================
+    // JPA LIFECYCLE
+    // =========================================================
+
     @PrePersist
     protected void onCreate() {
-
         LocalDateTime now = LocalDateTime.now();
 
         if (createdAt == null) {

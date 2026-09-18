@@ -1,8 +1,11 @@
 package com.evoluxion.hiring_portal.controller;
 
+import com.evoluxion.hiring_portal.dto.ForgotPasswordRequest;
 import com.evoluxion.hiring_portal.dto.OtpRequest;
 import com.evoluxion.hiring_portal.dto.RegistrationRequest;
 import com.evoluxion.hiring_portal.dto.RegistrationResponse;
+import com.evoluxion.hiring_portal.dto.ResetPasswordRequest;
+import com.evoluxion.hiring_portal.dto.VerifyResetOtpRequest;
 import com.evoluxion.hiring_portal.service.RegistrationService;
 
 import jakarta.validation.Valid;
@@ -41,7 +44,7 @@ public class RegistrationController {
     }
 
     // =========================================================
-    // OTP VERIFICATION
+    // VERIFY REGISTRATION OTP
     // =========================================================
 
     @PostMapping("/verify-otp")
@@ -55,7 +58,7 @@ public class RegistrationController {
     }
 
     // =========================================================
-    // RESEND OTP
+    // RESEND REGISTRATION OTP
     // =========================================================
 
     @PostMapping("/resend-otp")
@@ -64,6 +67,48 @@ public class RegistrationController {
 
         String response =
                 registrationService.resendOtp(email);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // =========================================================
+    // FORGOT PASSWORD
+    // =========================================================
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+
+        String response =
+                registrationService.forgotPassword(request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // =========================================================
+    // VERIFY PASSWORD RESET OTP
+    // =========================================================
+
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<String> verifyResetOtp(
+            @Valid @RequestBody VerifyResetOtpRequest request) {
+
+        String response =
+                registrationService.verifyResetOtp(request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // =========================================================
+    // RESET PASSWORD
+    // =========================================================
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        String response =
+                registrationService.resetPassword(request);
 
         return ResponseEntity.ok(response);
     }
