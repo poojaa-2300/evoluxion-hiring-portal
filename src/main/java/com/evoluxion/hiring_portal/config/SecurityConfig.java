@@ -2,26 +2,22 @@ package com.evoluxion.hiring_portal.config;
 
 import com.evoluxion.hiring_portal.security.JwtAuthenticationFilter;
 
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -29,92 +25,113 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http)
-            throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
 
         http
-            // Disable CSRF because this is a stateless REST API
+            // Disable CSRF because this is a REST API
             .csrf(csrf -> csrf.disable())
 
-            // JWT-based authentication
+            // JWT authentication is stateless
             .sessionManagement(session ->
-                    session.sessionCreationPolicy(
-                            SessionCreationPolicy.STATELESS
-                    )
+                session.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS
+                )
             )
 
             .authorizeHttpRequests(auth -> auth
 
-                // ==========================================
-                // PUBLIC AUTHENTICATION ENDPOINTS
-                // ==========================================
+                // =========================
+                // PUBLIC AUTH ENDPOINTS
+                // =========================
 
+                // Candidate registration
                 .requestMatchers(
-                        "/api/auth/register",
-                        "/api/auth/login",
-                        "/api/auth/verify-otp",
-                        "/api/auth/resend-otp",
-                        "/api/auth/forgot-password",
-                        "/api/auth/verify-reset-otp",
-                        "/api/auth/reset-password"
+                    "/api/auth/register"
                 ).permitAll()
 
-
-                // ==========================================
-                // SWAGGER / API DOCUMENTATION
-                // ==========================================
-
+                // Candidate OTP verification
                 .requestMatchers(
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html"
+                    "/api/auth/verify-otp"
                 ).permitAll()
 
+                // Candidate resend OTP
+                .requestMatchers(
+                    "/api/auth/resend-otp"
+                ).permitAll()
 
-                // ==========================================
-                // CANDIDATE APIs
-                // ==========================================
+                // Candidate forgot password
+                .requestMatchers(
+                    "/api/auth/forgot-password"
+                ).permitAll()
 
-                .requestMatchers("/api/candidate/**")
-                .hasRole("CANDIDATE")
+                // Candidate verify reset OTP
+                .requestMatchers(
+                    "/api/auth/verify-reset-otp"
+                ).permitAll()
 
+                // Candidate reset password
+                .requestMatchers(
+                    "/api/auth/reset-password"
+                ).permitAll()
 
-                // ==========================================
-                // INTERVIEWER APIs
-                // ==========================================
+                // Login
+                .requestMatchers(
+                    "/api/auth/login"
+                ).permitAll()
 
-                .requestMatchers("/api/interviewer/**")
-                .hasRole("INTERVIEWER")
+                // =========================
+                // INTERVIEWER REGISTRATION
+                // =========================
 
+                // Interviewer can register without login
+                // Admin approval is required afterwards
+                .requestMatchers(
+                    "/api/auth/interviewer/register"
+                ).permitAll()
 
-                // ==========================================
+                // =========================
+                // SWAGGER / OPENAPI
+                // =========================
+
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**"
+                ).permitAll()
+
+                // =========================
+                // ROLE BASED ACCESS
+                // =========================
+
+                // Candidate APIs
+                .requestMatchers(
+                    "/api/candidate/**"
+                ).hasRole("CANDIDATE")
+
+                // Interviewer APIs
+                .requestMatchers(
+                    "/api/interviewer/**"
+                ).hasRole("INTERVIEWER")
+
                 // HR APIs
-                // ==========================================
+                .requestMatchers(
+                    "/api/hr/**"
+                ).hasRole("HR")
 
-                .requestMatchers("/api/hr/**")
-                .hasRole("HR")
+                // Admin APIs
+                .requestMatchers(
+                    "/api/admin/**"
+                ).hasRole("ADMIN")
 
-
-                // ==========================================
-                // ADMIN APIs
-                // ==========================================
-
-                .requestMatchers("/api/admin/**")
-                .hasRole("ADMIN")
-
-
-                // ==========================================
-                // EVERYTHING ELSE
-                // ==========================================
-
+                // Everything else requires authentication
                 .anyRequest().authenticated()
             )
 
-            // JWT filter runs before Spring's username/password filter
+            // JWT filter
             .addFilterBefore(
-                    jwtAuthenticationFilter,
-                    org.springframework.security.web.authentication
-                            .UsernamePasswordAuthenticationFilter.class
+                jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class
             );
 
         return http.build();

@@ -13,27 +13,17 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    /**
-     * Sends OTP for candidate email verification.
-     */
-    public void sendOtp(
-            String email,
-            String name,
-            int otp) {
+    public void sendOtp(String email, String name, int otp) {
 
-        SimpleMailMessage message =
-                new SimpleMailMessage();
+        SimpleMailMessage message = new SimpleMailMessage();
 
         message.setTo(email);
-
-        message.setSubject(
-                "Hiring Portal - Candidate OTP Verification");
+        message.setSubject("Hiring Portal - Candidate OTP Verification");
 
         message.setText(
                 "Hello " + name + ",\n\n"
                 + "Thank you for registering with the Hiring Portal.\n\n"
-                + "Your email verification OTP is: "
-                + otp + "\n\n"
+                + "Your email verification OTP is: " + otp + "\n\n"
                 + "This OTP is valid for 5 minutes.\n\n"
                 + "Please do not share this OTP with anyone.\n\n"
                 + "If you did not register on the Hiring Portal, "
@@ -45,28 +35,22 @@ public class EmailService {
         mailSender.send(message);
     }
 
-    /**
-     * Sends OTP for password reset.
-     * We will use this later when we add Forgot Password.
-     */
     public void sendPasswordResetOtp(
             String email,
             String name,
             int otp) {
 
-        SimpleMailMessage message =
-                new SimpleMailMessage();
+        SimpleMailMessage message = new SimpleMailMessage();
 
         message.setTo(email);
-
-        message.setSubject(
-                "Hiring Portal - Password Reset OTP");
+        message.setSubject("Hiring Portal - Password Reset OTP");
 
         message.setText(
                 "Hello " + name + ",\n\n"
-                + "Your password reset OTP is: "
-                + otp + "\n\n"
+                + "We received a request to reset your Hiring Portal password.\n\n"
+                + "Your password reset OTP is: " + otp + "\n\n"
                 + "This OTP is valid for 5 minutes.\n\n"
+                + "Please do not share this OTP with anyone.\n\n"
                 + "If you did not request a password reset, "
                 + "please ignore this email.\n\n"
                 + "Regards,\n"

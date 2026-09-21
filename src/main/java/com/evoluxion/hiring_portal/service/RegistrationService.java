@@ -7,16 +7,19 @@ import com.evoluxion.hiring_portal.dto.RegistrationResponse;
 import com.evoluxion.hiring_portal.dto.ResetPasswordRequest;
 import com.evoluxion.hiring_portal.dto.VerifyResetOtpRequest;
 import com.evoluxion.hiring_portal.entity.Candidate;
-import com.evoluxion.hiring_portal.entity.Role;
+import com.evoluxion.hiring_portal.entity.Interviewer;
 import com.evoluxion.hiring_portal.entity.UserAccount;
 import com.evoluxion.hiring_portal.repository.CandidateRepository;
+import com.evoluxion.hiring_portal.repository.InterviewerRepository;
 import com.evoluxion.hiring_portal.repository.UserAccountRepository;
+
+import jakarta.transaction.Transactional;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -24,17 +27,20 @@ import java.util.UUID;
 public class RegistrationService {
 
     private final CandidateRepository candidateRepository;
+    private final InterviewerRepository interviewerRepository;
     private final UserAccountRepository userAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
     public RegistrationService(
             CandidateRepository candidateRepository,
+            InterviewerRepository interviewerRepository,
             UserAccountRepository userAccountRepository,
             PasswordEncoder passwordEncoder,
             EmailService emailService) {
 
         this.candidateRepository = candidateRepository;
+        this.interviewerRepository = interviewerRepository;
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -45,73 +51,95 @@ public class RegistrationService {
     // =========================================================
 
     @Transactional
-    public RegistrationResponse registerCandidate(RegistrationRequest request) {
+    public RegistrationResponse registerCandidate(
+            RegistrationRequest request) {
 
-        String email = request.getEmail().trim().toLowerCase();
-        String phone = request.getPhone().trim();
+        String email = request.getEmail()
+                .trim()
+                .toLowerCase();
+
+        String phone = request.getPhone()
+                .trim();
 
         if (candidateRepository.existsByEmail(email)) {
             throw new IllegalArgumentException(
-                    "Email is already registered"
-            );
-        }
-
-        if (userAccountRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException(
-                    "Email is already registered"
-            );
+                    "A candidate with this email already exists");
         }
 
         if (candidateRepository.existsByPhone(phone)) {
             throw new IllegalArgumentException(
-                    "Phone number is already registered"
-            );
+                    "A candidate with this phone number already exists");
         }
 
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
+        if (userAccountRepository.existsByEmail(email)) {
             throw new IllegalArgumentException(
-                    "Password and confirm password do not match"
-            );
+                    "An account with this email already exists");
         }
 
-        String candidateId = generateCandidateId();
+        if (!request.getPassword()
+                .equals(request.getConfirmPassword())) {
 
-        String encodedPassword =
-                passwordEncoder.encode(request.getPassword());
+            throw new IllegalArgumentException(
+                    "Password and confirm password do not match");
+        }
 
         int otp = generateOtp();
 
-        LocalDateTime otpExpiryTime =
-                LocalDateTime.now().plusMinutes(5);
+        Candidate candidate = new Candidate();
 
-        Candidate candidate = Candidate.builder()
-                .candidateId(candidateId)
-                .firstName(request.getFirstName().trim())
-                .lastName(request.getLastName().trim())
-                .email(email)
-                .phone(phone)
-                .password(encodedPassword)
-                .dateOfBirth(request.getDateOfBirth())
-                .gender(request.getGender())
-                .highestQualification(request.getHighestQualification())
-                .collegeUniversity(request.getCollegeUniversity())
-                .graduationYear(request.getGraduationYear())
-                .skills(request.getSkills())
-                .role("CANDIDATE")
-                .otp(otp)
-                .otpExpiryTime(otpExpiryTime)
-                .emailVerified(false)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+        candidate.setCandidateId(generateCandidateId());
 
-        Candidate savedCandidate =
-                candidateRepository.save(candidate);
+        candidate.setFirstName(
+                request.getFirstName().trim());
+
+        candidate.setLastName(
+                request.getLastName().trim());
+
+        candidate.setEmail(email);
+
+        candidate.setPhone(phone);
+
+        candidate.setPassword(
+                passwordEncoder.encode(
+                        request.getPassword()));
+
+        candidate.setDateOfBirth(
+                request.getDateOfBirth());
+
+        candidate.setGender(
+                request.getGender());
+
+        candidate.setHighestQualification(
+                request.getHighestQualification());
+
+        candidate.setCollegeUniversity(
+                request.getCollegeUniversity());
+
+        candidate.setGraduationYear(
+                request.getGraduationYear());
+
+        candidate.setSkills(
+                request.getSkills());
+
+        // Candidate role is stored as String
+        candidate.setRole("CANDIDATE");
+
+        candidate.setOtp(otp);
+
+        candidate.setOtpExpiryTime(
+                LocalDateTime.now().plusMinutes(5));
+
+        candidate.setEmailVerified(false);
+
+        candidateRepository.save(candidate);
 
         UserAccount userAccount = UserAccount.builder()
                 .email(email)
-                .password(encodedPassword)
-                .role(Role.CANDIDATE)
+                .password(
+                        passwordEncoder.encode(
+                                request.getPassword()))
+                .role(
+                        com.evoluxion.hiring_portal.entity.Role.CANDIDATE)
                 .enabled(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -121,59 +149,64 @@ public class RegistrationService {
 
         emailService.sendOtp(
                 email,
-                savedCandidate.getFirstName(),
-                otp
-        );
+                candidate.getFirstName(),
+                otp);
 
         return new RegistrationResponse(
-                "Registration successful. OTP has been sent to your email.",
-                savedCandidate.getCandidateId(),
-                savedCandidate.getEmail()
+                candidate.getCandidateId(),
+                candidate.getFirstName(),
+                candidate.getLastName(),
+                candidate.getEmail(),
+                "Registration successful. Please verify your email using the OTP sent to your email."
         );
     }
 
     // =========================================================
-    // VERIFY REGISTRATION OTP
+    // CANDIDATE EMAIL OTP VERIFICATION
     // =========================================================
 
     @Transactional
     public String verifyOtp(OtpRequest request) {
 
-        String email =
-                request.getEmail().trim().toLowerCase();
+        String email = request.getEmail()
+                .trim()
+                .toLowerCase();
 
         Candidate candidate =
                 candidateRepository.findByEmail(email)
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
-                                        "Candidate not found"
-                                ));
+                                        "Candidate not found"));
 
-        if (Boolean.TRUE.equals(candidate.getEmailVerified())) {
+        if (candidate.getEmailVerified()) {
             return "Email is already verified";
         }
 
-        if (candidate.getOtp() == null
-                || !candidate.getOtp().equals(request.getOtp())) {
+        if (candidate.getOtp() == null) {
+            throw new IllegalArgumentException(
+                    "No OTP is available. Please request a new OTP.");
+        }
+
+        if (!candidate.getOtp()
+                .equals(request.getOtp())) {
 
             throw new IllegalArgumentException(
-                    "Invalid OTP"
-            );
+                    "Invalid OTP");
         }
 
         if (candidate.getOtpExpiryTime() == null
-                || LocalDateTime.now()
-                .isAfter(candidate.getOtpExpiryTime())) {
+                || candidate.getOtpExpiryTime()
+                .isBefore(LocalDateTime.now())) {
 
             throw new IllegalArgumentException(
-                    "OTP has expired. Please request a new OTP"
-            );
+                    "OTP has expired. Please request a new OTP.");
         }
 
         candidate.setEmailVerified(true);
+
         candidate.setOtp(null);
+
         candidate.setOtpExpiryTime(null);
-        candidate.setUpdatedAt(LocalDateTime.now());
 
         candidateRepository.save(candidate);
 
@@ -181,195 +214,322 @@ public class RegistrationService {
                 userAccountRepository.findByEmail(email)
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
-                                        "User account not found"
-                                ));
+                                        "User account not found"));
 
         userAccount.setEnabled(true);
-        userAccount.setUpdatedAt(LocalDateTime.now());
+
+        userAccount.setUpdatedAt(
+                LocalDateTime.now());
 
         userAccountRepository.save(userAccount);
 
-        return "Email verified successfully. You can now login.";
+        return "Email verified successfully. Your account is now active.";
     }
 
     // =========================================================
-    // RESEND REGISTRATION OTP
+    // CANDIDATE RESEND OTP
     // =========================================================
 
     @Transactional
     public String resendOtp(String email) {
 
-        String normalizedEmail =
-                email.trim().toLowerCase();
+        email = email.trim().toLowerCase();
 
         Candidate candidate =
-                candidateRepository.findByEmail(normalizedEmail)
+                candidateRepository.findByEmail(email)
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
-                                        "Candidate not found"
-                                ));
+                                        "Candidate not found"));
 
-        if (Boolean.TRUE.equals(candidate.getEmailVerified())) {
+        if (candidate.getEmailVerified()) {
             return "Email is already verified";
         }
 
-        int newOtp = generateOtp();
+        int otp = generateOtp();
 
-        LocalDateTime newExpiryTime =
-                LocalDateTime.now().plusMinutes(5);
+        candidate.setOtp(otp);
 
-        candidate.setOtp(newOtp);
-        candidate.setOtpExpiryTime(newExpiryTime);
-        candidate.setUpdatedAt(LocalDateTime.now());
+        candidate.setOtpExpiryTime(
+                LocalDateTime.now().plusMinutes(5));
 
         candidateRepository.save(candidate);
 
         emailService.sendOtp(
-                normalizedEmail,
+                candidate.getEmail(),
                 candidate.getFirstName(),
-                newOtp
-        );
+                otp);
 
-        return "A new OTP has been sent to your email";
+        return "A new OTP has been sent to your email.";
     }
 
     // =========================================================
     // FORGOT PASSWORD
+    // CANDIDATE + INTERVIEWER
     // =========================================================
 
     @Transactional
     public String forgotPassword(
             ForgotPasswordRequest request) {
 
-        String email =
-                request.getEmail().trim().toLowerCase();
+        String email = request.getEmail()
+                .trim()
+                .toLowerCase();
 
-        Candidate candidate =
-                candidateRepository.findByEmail(email)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Candidate not found"
-                                ));
+        // -----------------------------------------------------
+        // CANDIDATE
+        // -----------------------------------------------------
 
-        int resetOtp = generateOtp();
+        Optional<Candidate> candidateOptional =
+                candidateRepository.findByEmail(email);
 
-        LocalDateTime resetOtpExpiryTime =
-                LocalDateTime.now().plusMinutes(5);
+        if (candidateOptional.isPresent()) {
 
-        candidate.setPasswordResetOtp(resetOtp);
-        candidate.setPasswordResetOtpExpiryTime(
-                resetOtpExpiryTime
-        );
-        candidate.setUpdatedAt(LocalDateTime.now());
+            Candidate candidate =
+                    candidateOptional.get();
 
-        candidateRepository.save(candidate);
+            int resetOtp = generateOtp();
 
-        emailService.sendPasswordResetOtp(
-                email,
-                candidate.getFirstName(),
-                resetOtp
-        );
+            candidate.setPasswordResetOtp(resetOtp);
 
-        return "Password reset OTP has been sent to your email";
+            candidate.setPasswordResetOtpExpiryTime(
+                    LocalDateTime.now().plusMinutes(5));
+
+            candidateRepository.save(candidate);
+
+            emailService.sendPasswordResetOtp(
+                    candidate.getEmail(),
+                    candidate.getFirstName(),
+                    resetOtp);
+
+            return "Password reset OTP has been sent to your email.";
+        }
+
+        // -----------------------------------------------------
+        // INTERVIEWER
+        // -----------------------------------------------------
+
+        Optional<Interviewer> interviewerOptional =
+                interviewerRepository.findByEmail(email);
+
+        if (interviewerOptional.isPresent()) {
+
+            Interviewer interviewer =
+                    interviewerOptional.get();
+
+            int resetOtp = generateOtp();
+
+            interviewer.setPasswordResetOtp(resetOtp);
+
+            interviewer.setPasswordResetOtpExpiryTime(
+                    LocalDateTime.now().plusMinutes(5));
+
+            interviewerRepository.save(interviewer);
+
+            emailService.sendPasswordResetOtp(
+                    interviewer.getEmail(),
+                    interviewer.getFirstName(),
+                    resetOtp);
+
+            return "Password reset OTP has been sent to your email.";
+        }
+
+        throw new IllegalArgumentException(
+                "No registered account found with this email");
     }
 
     // =========================================================
-    // VERIFY PASSWORD RESET OTP
+    // VERIFY RESET OTP
+    // CANDIDATE + INTERVIEWER
     // =========================================================
 
     @Transactional
     public String verifyResetOtp(
             VerifyResetOtpRequest request) {
 
-        String email =
-                request.getEmail().trim().toLowerCase();
+        String email = request.getEmail()
+                .trim()
+                .toLowerCase();
 
-        Candidate candidate =
-                candidateRepository.findByEmail(email)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Candidate not found"
-                                ));
+        // -----------------------------------------------------
+        // CANDIDATE
+        // -----------------------------------------------------
 
-        if (candidate.getPasswordResetOtp() == null
-                || !candidate.getPasswordResetOtp()
-                .equals(request.getOtp())) {
+        Optional<Candidate> candidateOptional =
+                candidateRepository.findByEmail(email);
 
-            throw new IllegalArgumentException(
-                    "Invalid password reset OTP"
-            );
+        if (candidateOptional.isPresent()) {
+
+            Candidate candidate =
+                    candidateOptional.get();
+
+            if (candidate.getPasswordResetOtp() == null) {
+
+                throw new IllegalArgumentException(
+                        "No password reset OTP found. Please request a new OTP.");
+            }
+
+            if (!candidate.getPasswordResetOtp()
+                    .equals(request.getOtp())) {
+
+                throw new IllegalArgumentException(
+                        "Invalid password reset OTP");
+            }
+
+            if (candidate.getPasswordResetOtpExpiryTime() == null
+                    || candidate.getPasswordResetOtpExpiryTime()
+                    .isBefore(LocalDateTime.now())) {
+
+                throw new IllegalArgumentException(
+                        "Password reset OTP has expired. Please request a new OTP.");
+            }
+
+            return "Password reset OTP verified successfully.";
         }
 
-        if (candidate.getPasswordResetOtpExpiryTime() == null
-                || LocalDateTime.now()
-                .isAfter(candidate
-                        .getPasswordResetOtpExpiryTime())) {
+        // -----------------------------------------------------
+        // INTERVIEWER
+        // -----------------------------------------------------
 
-            throw new IllegalArgumentException(
-                    "Password reset OTP has expired. Please request a new OTP"
-            );
+        Optional<Interviewer> interviewerOptional =
+                interviewerRepository.findByEmail(email);
+
+        if (interviewerOptional.isPresent()) {
+
+            Interviewer interviewer =
+                    interviewerOptional.get();
+
+            if (interviewer.getPasswordResetOtp() == null) {
+
+                throw new IllegalArgumentException(
+                        "No password reset OTP found. Please request a new OTP.");
+            }
+
+            if (!interviewer.getPasswordResetOtp()
+                    .equals(request.getOtp())) {
+
+                throw new IllegalArgumentException(
+                        "Invalid password reset OTP");
+            }
+
+            if (interviewer.getPasswordResetOtpExpiryTime() == null
+                    || interviewer.getPasswordResetOtpExpiryTime()
+                    .isBefore(LocalDateTime.now())) {
+
+                throw new IllegalArgumentException(
+                        "Password reset OTP has expired. Please request a new OTP.");
+            }
+
+            return "Password reset OTP verified successfully.";
         }
 
-        return "Password reset OTP verified successfully";
+        throw new IllegalArgumentException(
+                "No registered account found with this email");
     }
 
     // =========================================================
     // RESET PASSWORD
+    // CANDIDATE + INTERVIEWER
     // =========================================================
 
     @Transactional
     public String resetPassword(
             ResetPasswordRequest request) {
 
-        String email =
-                request.getEmail().trim().toLowerCase();
-
-        Candidate candidate =
-                candidateRepository.findByEmail(email)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Candidate not found"
-                                ));
+        String email = request.getEmail()
+                .trim()
+                .toLowerCase();
 
         if (!request.getNewPassword()
                 .equals(request.getConfirmPassword())) {
 
             throw new IllegalArgumentException(
-                    "New password and confirm password do not match"
-            );
+                    "Password and confirm password do not match");
         }
 
-        String encodedPassword =
-                passwordEncoder.encode(
-                        request.getNewPassword()
-                );
+        // -----------------------------------------------------
+        // CANDIDATE
+        // -----------------------------------------------------
 
-        candidate.setPassword(encodedPassword);
+        Optional<Candidate> candidateOptional =
+                candidateRepository.findByEmail(email);
 
-        candidate.setPasswordResetOtp(null);
-        candidate.setPasswordResetOtpExpiryTime(null);
+        if (candidateOptional.isPresent()) {
 
-        candidate.setUpdatedAt(LocalDateTime.now());
+            Candidate candidate =
+                    candidateOptional.get();
 
-        candidateRepository.save(candidate);
+            String encodedPassword =
+                    passwordEncoder.encode(
+                            request.getNewPassword());
 
-        UserAccount userAccount =
-                userAccountRepository.findByEmail(email)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "User account not found"
-                                ));
+            candidate.setPassword(encodedPassword);
 
-        userAccount.setPassword(encodedPassword);
-        userAccount.setUpdatedAt(LocalDateTime.now());
+            candidate.setPasswordResetOtp(null);
 
-        userAccountRepository.save(userAccount);
+            candidate.setPasswordResetOtpExpiryTime(null);
 
-        return "Password reset successfully. You can now login.";
+            candidateRepository.save(candidate);
+
+            UserAccount userAccount =
+                    userAccountRepository.findByEmail(email)
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "User account not found"));
+
+            userAccount.setPassword(encodedPassword);
+
+            userAccount.setUpdatedAt(
+                    LocalDateTime.now());
+
+            userAccountRepository.save(userAccount);
+
+            return "Password reset successfully.";
+        }
+
+        // -----------------------------------------------------
+        // INTERVIEWER
+        // -----------------------------------------------------
+
+        Optional<Interviewer> interviewerOptional =
+                interviewerRepository.findByEmail(email);
+
+        if (interviewerOptional.isPresent()) {
+
+            Interviewer interviewer =
+                    interviewerOptional.get();
+
+            String encodedPassword =
+                    passwordEncoder.encode(
+                            request.getNewPassword());
+
+            interviewer.setPasswordResetOtp(null);
+
+            interviewer.setPasswordResetOtpExpiryTime(null);
+
+            interviewerRepository.save(interviewer);
+
+            UserAccount userAccount =
+                    userAccountRepository.findByEmail(email)
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "User account not found"));
+
+            userAccount.setPassword(encodedPassword);
+
+            userAccount.setUpdatedAt(
+                    LocalDateTime.now());
+
+            userAccountRepository.save(userAccount);
+
+            return "Password reset successfully.";
+        }
+
+        throw new IllegalArgumentException(
+                "No registered account found with this email");
     }
 
     // =========================================================
-    // OTP GENERATION
+    // OTP GENERATOR
     // =========================================================
 
     private int generateOtp() {
@@ -379,7 +539,7 @@ public class RegistrationService {
     }
 
     // =========================================================
-    // CANDIDATE ID GENERATION
+    // CANDIDATE ID GENERATOR
     // =========================================================
 
     private String generateCandidateId() {
