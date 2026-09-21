@@ -4,10 +4,13 @@ import com.evoluxion.hiring_portal.security.JwtAuthenticationFilter;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -16,9 +19,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
-
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
@@ -28,47 +29,93 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http)
+            throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable())
+            // Disable CSRF because this is a stateless REST API
+            .csrf(csrf -> csrf.disable())
 
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
-                        )
-                )
+            // JWT-based authentication
+            .sessionManagement(session ->
+                    session.sessionCreationPolicy(
+                            SessionCreationPolicy.STATELESS
+                    )
+            )
 
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/register",
-                                "/api/auth/login",
+            .authorizeHttpRequests(auth -> auth
 
-                                // Email verification
-                                "/api/auth/verify-otp",
-                                "/api/auth/resend-otp",
+                // ==========================================
+                // PUBLIC AUTHENTICATION ENDPOINTS
+                // ==========================================
 
-                                // Forgot password
-                                "/api/auth/forgot-password",
-                                "/api/auth/verify-reset-otp",
-                                "/api/auth/reset-password",
+                .requestMatchers(
+                        "/api/auth/register",
+                        "/api/auth/login",
+                        "/api/auth/verify-otp",
+                        "/api/auth/resend-otp",
+                        "/api/auth/forgot-password",
+                        "/api/auth/verify-reset-otp",
+                        "/api/auth/reset-password"
+                ).permitAll()
 
-                                // Swagger
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        )
-                        .permitAll()
 
-                        .anyRequest()
-                        .authenticated()
-                )
+                // ==========================================
+                // SWAGGER / API DOCUMENTATION
+                // ==========================================
 
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+                .requestMatchers(
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html"
+                ).permitAll()
+
+
+                // ==========================================
+                // CANDIDATE APIs
+                // ==========================================
+
+                .requestMatchers("/api/candidate/**")
+                .hasRole("CANDIDATE")
+
+
+                // ==========================================
+                // INTERVIEWER APIs
+                // ==========================================
+
+                .requestMatchers("/api/interviewer/**")
+                .hasRole("INTERVIEWER")
+
+
+                // ==========================================
+                // HR APIs
+                // ==========================================
+
+                .requestMatchers("/api/hr/**")
+                .hasRole("HR")
+
+
+                // ==========================================
+                // ADMIN APIs
+                // ==========================================
+
+                .requestMatchers("/api/admin/**")
+                .hasRole("ADMIN")
+
+
+                // ==========================================
+                // EVERYTHING ELSE
+                // ==========================================
+
+                .anyRequest().authenticated()
+            )
+
+            // JWT filter runs before Spring's username/password filter
+            .addFilterBefore(
+                    jwtAuthenticationFilter,
+                    org.springframework.security.web.authentication
+                            .UsernamePasswordAuthenticationFilter.class
+            );
 
         return http.build();
     }
