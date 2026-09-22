@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Service
+
 public class JwtService {
 
     @Value("${app.jwt.secret}")

@@ -6,8 +6,10 @@ import com.evoluxion.hiring_portal.dto.RegistrationRequest;
 import com.evoluxion.hiring_portal.dto.RegistrationResponse;
 import com.evoluxion.hiring_portal.dto.ResetPasswordRequest;
 import com.evoluxion.hiring_portal.dto.VerifyResetOtpRequest;
+import com.evoluxion.hiring_portal.entity.ApprovalStatus;
 import com.evoluxion.hiring_portal.entity.Candidate;
 import com.evoluxion.hiring_portal.entity.Interviewer;
+import com.evoluxion.hiring_portal.entity.Role;
 import com.evoluxion.hiring_portal.entity.UserAccount;
 import com.evoluxion.hiring_portal.repository.CandidateRepository;
 import com.evoluxion.hiring_portal.repository.InterviewerRepository;
@@ -138,9 +140,14 @@ public class RegistrationService {
                 .password(
                         passwordEncoder.encode(
                                 request.getPassword()))
-                .role(
-                        com.evoluxion.hiring_portal.entity.Role.CANDIDATE)
+                .role(Role.CANDIDATE)
                 .enabled(false)
+                .approvalStatus(ApprovalStatus.APPROVED)
+                .fullName(
+                        request.getFirstName().trim()
+                        + " "
+                        + request.getLastName().trim()
+                )
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();

@@ -29,11 +29,27 @@ public class UserAccount {
     private Role role;
 
     @Column(nullable = false)
-    private Boolean enabled = true;
+    private Boolean enabled = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ApprovalStatus approvalStatus;
+
+    @Column(length = 150)
+    private String fullName;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+    
+    // PASSWORD RESET
+    
+    @Column
+    private Integer passwordResetOtp;
+
+    @Column
+    private LocalDateTime passwordResetOtpExpiryTime;
+
 }

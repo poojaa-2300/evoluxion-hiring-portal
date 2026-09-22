@@ -18,7 +18,7 @@ public class EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
 
         message.setTo(email);
-        message.setSubject("Hiring Portal - Candidate OTP Verification");
+        message.setSubject("Hiring Portal - OTP Verification");
 
         message.setText(
                 "Hello " + name + ",\n\n"
