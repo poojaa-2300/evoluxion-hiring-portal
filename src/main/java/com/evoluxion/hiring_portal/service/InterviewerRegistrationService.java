@@ -1,6 +1,7 @@
 package com.evoluxion.hiring_portal.service;
 
 import com.evoluxion.hiring_portal.dto.InterviewerRegistrationRequest;
+import com.evoluxion.hiring_portal.entity.ApprovalStatus;
 import com.evoluxion.hiring_portal.entity.Interviewer;
 import com.evoluxion.hiring_portal.entity.Role;
 import com.evoluxion.hiring_portal.entity.UserAccount;
@@ -78,7 +79,7 @@ public class InterviewerRegistrationService {
                 .build();
 
         // Create login account
-        // enabled = false means Admin approval is required
+        // Interviewer must be approved by Admin before login
         UserAccount userAccount = UserAccount.builder()
                 .email(email)
                 .password(
@@ -86,6 +87,7 @@ public class InterviewerRegistrationService {
                                 request.getPassword()))
                 .role(Role.INTERVIEWER)
                 .enabled(false)
+                .approvalStatus(ApprovalStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
